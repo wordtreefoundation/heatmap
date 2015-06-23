@@ -16,7 +16,7 @@ $stdin.each_line do |line|
     i += 1
   end
 
-  show (x.to_i-1), (y.to_i-1), (score.to_f.round(3))
+  show (x.to_i-1), (y.to_i-1), -(score.to_f.round(3))
   # {
   #   score: score,
   #   titleX: titleX,
