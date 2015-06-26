@@ -1,0 +1,253 @@
+<html>
+<head>
+  <title>Book of Mormon / King James Bible</title>
+  <script src="js/jquery-2.1.3.min.js"></script>
+  <script src="js/lodash-3.9.3.min.js"></script>
+  <script src="js/highcharts.src.js"></script>
+  <script src="js/data.src.js"></script>
+  <script src="js/heatmap.src.js"></script>
+  <script src="js/exporting.src.js"></script>
+  <script src="js/highcharts-export-csv.js"></script>
+  <script src="js/highcharts-canvas-heatmap.js"></script>
+
+  <link rel="stylesheet" type="text/css" href="heatmap.css">
+</head>
+<body>
+
+  <div id="matching">
+    <div class="match-title">Matching Phrases</div>
+    <div class="match-show"></div>
+  </div>
+
+  <select id="select-model"></select>
+  <select id="select-abbrev"></select>
+
+  <div id="heatmap-container"></div>
+
+  <script>
+    var lookup = {};
+
+    var basename = function(path) {
+      return path.split(/[\\/]/).pop();
+    };
+
+    var getData = function(url, success) {
+      $.ajax({
+        url: url,
+        jsonp: false,
+        jsonpCallback: basename(url).replace(/\.json$/, ''),
+        crossDomain: true,
+        dataType: "jsonp",
+        success: success,
+      });
+    };
+
+    var loadLookup = function(path) {
+      lookup[path] = {}
+      getData(path, function(data) {
+        lookup[path] = data;
+      });
+    };
+
+    function Heatmap(data) {
+      this.data = data;
+    }
+
+    Heatmap.prototype.loadScores = function(success) {
+      getData(this.data.folder + "/scores.json", function(data) {
+        this.blocks_x = data[data.length-1][0];
+        this.blocks_y = data[data.length-1][1];
+        success(data, this);
+      }.bind(this));
+    };
+
+    Heatmap.prototype.loadPhrases = function(y, success) {
+    };
+
+    Heatmap.prototype.mount = function(parent, data) {
+      var heatmap = this;
+
+      var w = 3 * this.blocks_x;
+      var h = w * this.blocks_y / this.blocks_x;
+      var margin = {
+        top: 40,
+        right: 80,
+        bottom: 10,
+        left: 50
+      };
+      $(parent).width(w + (margin.right + margin.left));
+      $(parent).height(h + (margin.top + margin.bottom));
+
+      new Highcharts.Chart({
+        // data: {
+        //     csv: document.getElementById('csv').innerHTML
+        // },
+
+        chart: {
+            renderTo: parent,
+            type: 'heatmap',
+            margin: [margin.top, margin.right, margin.bottom, margin.left],
+        },
+
+        plotOptions: {
+          heatmap: {
+            events: {
+              click: function(e) {
+                $.ajax({
+                  url: "db/wiki/bible/data-" + e.point.y + ".json",
+                  jsonp: false,
+                  jsonpCallback: 'callback',
+                  crossDomain: true,
+                  dataType: "jsonp",
+                  success: function(data) {
+                    var ngrams = data[e.point.x];
+                    var html = "";
+                    html += "<div class='value'>" + ngrams[0][0] + "</div>";
+                    html += "<div class='text'>" + ngrams[0][1] + "</div>";
+
+                    html += "<div class='value'>" + ngrams[1][0] + "</div>";
+                    html += "<div class='text'>" + ngrams[1][1] + "</div>";
+
+                    html += "<div class='value'>" + ngrams[2][0] + "</div>";
+                    html += "<div class='text'>" + ngrams[2][1] + "</div>";
+
+                    $('#matching .match-show').html(html);
+                  }
+                });
+              }
+            }
+          }
+        },
+
+        title: {
+            text: this.data.title,
+            align: 'left',
+            x: 40
+        },
+
+        xAxis: {
+            min: 0,
+            labels: {
+                align: 'left',
+                format: '{value}'
+            },
+            showLastLabel: false,
+        },
+
+        yAxis: {
+            title: {
+                text: null
+            },
+            labels: {
+                format: '{value}'
+            },
+            minPadding: 0,
+            maxPadding: 0,
+            startOnTick: false,
+            endOnTick: false,
+            tickWidth: 1,
+            reversed: true
+        },
+
+        colorAxis: {
+            stops: [
+                [0, '#3060cf'],
+                [0.5, '#fffbbc'],
+                [0.9, '#c4463a'],
+                [1, '#c4463a']
+            ],
+            min: 0,
+            max: 16,
+            startOnTick: false,
+            endOnTick: false,
+            labels: {
+                format: '{value}'
+            }
+        },
+
+        legend: {
+          title: { text: 'Score' },
+          align: 'right',
+          layout: 'vertical',
+          verticalAlign: 'middle',
+        },
+
+        tooltip: {
+          formatter: function() {
+            var lx = lookup[heatmap.data.lookup_x], lx_label,
+                ly = lookup[heatmap.data.lookup_y], ly_label;
+            if (heatmap.data.lookup_x && lx === undefined) { loadLookup(heatmap.data.lookup_x); }
+            if (lx && lx[this.point.x]) { lx_label = lx[this.point.x][0]; }
+            if (heatmap.data.lookup_y && ly === undefined) { loadLookup(heatmap.data.lookup_y); }
+            if (ly && ly[this.point.y]) { ly_label = ly[this.point.y][0]; }
+            return '' +
+              (lx_label ? lx_label : '') + ' [' + this.point.x + ']' + ', ' +
+              (ly_label ? ly_label : '') + ' [' + this.point.y + ']' + ': ' + this.point.value;
+          }
+        },
+
+        series: [{
+            data: data,
+            borderWidth: 0,
+            nullColor: '#EFEFEF',
+            turboThreshold: Number.MAX_VALUE // #3404, remove after 4.0.5 release
+        }]
+      });
+    };
+
+    var loadIndex = function(success) {
+      getData("index.json", success);
+    };
+
+    var populate = function(selectEl, options, value, label, cb) {
+      $(selectEl).html("");
+      for (var i = 0; i < options.length; i++) {
+        var v = (value === undefined ? options[i] : value(options[i]));
+        var l = (label === undefined ? options[i] : label(options[i]));
+        var optionEl = $("<option value='" + v + "'>" + l + "</option>");
+        optionEl.appendTo(selectEl);
+        if (cb !== undefined) { cb(options[i], optionEl, selectEl); }
+      }
+    }
+
+    loadIndex(function(data) {
+      byModel = _.groupBy(data, "model");
+      populate("#select-model", _.keys(byModel))
+      
+      $("#select-model").change(function() {
+        var model = $(this).val();
+        options = byModel[model];
+        populate("#select-abbrev", options,
+          function(o) { return o.model + '-' + o.abbrev; },
+          function(o) { return o.title; },
+          // Set 'meta' to data for each option
+          function(o, el) { el.data("heatmap", new Heatmap(o)); }
+        )
+        $("#select-abbrev").trigger('change');
+      }).trigger('change');
+
+      $("#select-abbrev").change(function(e) {
+        var heatmap = $('option:selected', this).data("heatmap");
+
+        $("#heatmap-container").html("LOADING...");
+        heatmap.loadScores(function(data, hm) {
+          console.log('scores', data, hm);
+          hm.mount($("#heatmap-container")[0], data);
+        })
+
+      }).trigger('change');
+    })
+  </script>
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-35980893-4', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+</body>
+</html>

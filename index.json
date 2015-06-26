@@ -1,0 +1,34 @@
+index([
+  {
+    "title": "Book of Mormon / First Book of Napoleon",
+    "abbrev": "fbon",
+    "model": "wiki",
+    "folder": "db/wiki/fbon",
+    "lookup_x": "db/lookup/bom.json",
+    "lookup_y": null,
+  },
+  {
+    "title": "Book of Mormon / First Book of Napoleon",
+    "abbrev": "fbon",
+    "model": "biblm",
+    "folder": "db/biblm/fbon",
+    "lookup_x": "db/lookup/bom.json",
+    "lookup_y": null,
+  },
+  {
+    "title": "Book of Mormon / Bible",
+    "abbrev": "bible",
+    "model": "biblm",
+    "folder": "db/biblm/bible",
+    "lookup_x": "db/lookup/bom.json",
+    "lookup_y": null,
+  },
+  {
+    "title": "Book of Mormon / Bible",
+    "abbrev": "bible",
+    "model": "wiki",
+    "folder": "db/wiki/bible",
+    "lookup_x": "db/lookup/bom.json",
+    "lookup_y": null,
+  },
+])

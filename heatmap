@@ -1,0 +1,136 @@
+#!/usr/bin/env ruby
+
+require "json"
+require "thor"
+require "open3"
+require "fileutils"
+
+class Compare2
+  # julia ~/Projects/wordtree/TextGrams/compare2.jl -c 1000 -n 8 -m wiki.lc.bin \
+  #   bom.txt X pride-prejudice.txt
+
+  DEFAULT_JULIA_COMPARE2 = File.expand_path(File.join("Projects", "wordtree", "TextGrams", "compare2.jl"), "~")
+
+  attr_reader :book1, :book2
+  attr_reader :short_x, :short_y
+  attr_reader :phr1, :phr2, :phr3
+
+  def self.parse_line(line)
+    new(*line.strip.split("\t"))
+  end
+
+  def self.run(model, book1, book2, compare2 = DEFAULT_JULIA_COMPARE2, &block)
+    cmd = "julia #{compare2} -c 1000 -n 8 -m #{model} #{book1} X #{book2}"
+    Open3.popen3(cmd) do |stdin, stdout, stderr, thread|
+      # Process compare2's stdout
+      Thread.new do
+        puts "Starting compare2.jl ..."
+        until (raw_line = stdout.gets).nil? do
+          block.call Compare2.parse_line(raw_line)
+        end
+      end
+
+      # Process compare2's stderr
+      Thread.new do
+        until (raw_line = stderr.gets).nil? do
+          parsed_line = Hash[:timestamp => Time.now, :line => "#{raw_line}"]
+          puts "compare2.jl: #{parsed_line}"
+        end
+      end
+
+      thread.join # don't exit until the external process is done
+    end
+  end
+
+  def initialize(score, book1, book2, x, short_x, y, short_y, phr1_score, phr1, phr2_score, phr2, phr3_score, phr3)
+    @score, @book1, @book2 = score, book1, book2
+    @x, @short_x           = x, short_x
+    @y, @short_y           = y, short_y
+    @phr1_score, @phr1     = phr1_score, phr1
+    @phr2_score, @phr2     = phr2_score, phr2
+    @phr3_score, @phr3     = phr3_score, phr3
+  end
+
+  def score
+    @score.to_f
+  end
+
+  def phr1_score
+    @phr1_score.to_f
+  end
+
+  def phr2_score
+    @phr2_score.to_f
+  end
+
+  def phr3_score
+    @phr3_score.to_f
+  end
+
+  def x
+    @x.to_i
+  end
+
+  def y
+    @y.to_i
+  end
+end
+
+class Prepare < Thor
+  DATA_DIR = File.join(File.dirname(__FILE__), "data")
+  DATABASE_DIR = File.join(File.dirname(__FILE__), "db")
+  DEFAULT_BOOK2 = File.join(DATA_DIR, "bom.clean.txt")
+  DEFAULT_MODELS = {
+    "wiki" => File.expand_path(File.join("Projects", "kenlm", "wiki.lc.bin"), "~"),
+    "biblm" => File.expand_path(File.join("Projects", "kenlm", "kjv.lc.bin"), "~")
+  }
+
+  desc "generate ABBREV BOOK1", "Generate a heatmap for a given book"
+  option :book2,    :default => DEFAULT_BOOK2
+  option :lm,       :default => "wiki"
+  option :compare2, :default => Compare2::DEFAULT_JULIA_COMPARE2
+  def generate(abbrev, book1)
+    model = DEFAULT_MODELS[options[:lm]]
+
+    workdir = File.join(DATABASE_DIR, options[:lm], abbrev)
+    scores_filepath = File.join(workdir, "scores.json")
+    FileUtils.mkdir_p(workdir)
+
+    phrases = {}
+    puts "Writing scores to #{scores_filepath}"
+    File.open(scores_filepath, "w") do |score_file|
+      score_file.write("scores([")
+      iter = 0
+      Compare2.run(model, options[:book2], book1) do |comp|
+        if iter % 100 == 0
+          print "\n" + "[#{comp.x},#{comp.y}]".ljust(10)
+        end
+        print "."; $stdout.flush
+        iter += 1
+
+        score_file.write("[#{comp.x},#{comp.y},#{-comp.score.round(3)}],\n")
+        phrases[comp.y] ||= {}
+        phrases[comp.y][comp.x] = [
+          [-comp.phr1_score.round(3), comp.phr1],
+          [-comp.phr2_score.round(3), comp.phr2],
+          [-comp.phr3_score.round(3), comp.phr3]
+        ]
+      end
+      score_file.seek(-2, File::SEEK_CUR) # erase most recent ",\n"
+      score_file.write("])")
+    end
+    puts
+
+    puts "Writing data files..."
+    phrases.each_pair do |y, xs|
+      datafile = File.join(workdir, "data#{y}.json")
+      File.open(datafile, "w") do |file|
+        file.puts("data#{y}(" + xs.to_json + ")")
+      end
+    end
+
+  end
+
+end
+
+Prepare.start

@@ -1,0 +1,27 @@
+body {
+  font-family: "Lucida Grande", "Lucida Sans Unicode", Arial, Helvetica, sans-serif;
+}
+#matching {
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  position: fixed;
+  right: 0px;
+  width: 300px;
+  margin: 0.5em 1em;
+}
+.match-title {
+  border-bottom: 2px solid #ccc;
+  padding: 0.5em;
+}
+.match-show {
+  min-height: 100px;
+  padding: 0.5em;
+}
+.match-show .value {
+  float: left;
+  margin-right: 1em;
+  font-weight: bold;
+}
+.match-show .text {
+  margin-bottom: 0.4em;
+}
