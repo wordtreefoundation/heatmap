@@ -287,4 +287,21 @@ index([
     "lookup_x": "db/lookup/bom.json",
     "lookup_y": null,
   },
+
+  {
+    "title": "Book of Mormon / Manuscript Found",
+    "abbrev": "msfound",
+    "model": "wiki",
+    "folder": "db/wiki/msfound",
+    "lookup_x": "db/lookup/bom.json",
+    "lookup_y": null,
+  },
+  {
+    "title": "Book of Mormon / Manuscript Found",
+    "abbrev": "msfound",
+    "model": "biblm",
+    "folder": "db/biblm/msfound",
+    "lookup_x": "db/lookup/bom.json",
+    "lookup_y": null,
+  },
 ])
