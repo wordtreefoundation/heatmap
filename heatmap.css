@@ -9,6 +9,11 @@ body {
   width: 300px;
   margin: 0.5em 1em;
 }
+#heatmap-message {
+  display: inline;
+  border-bottom: 2px solid red;
+  margin: 0.2em 0.5em 0em 0.5em;
+}
 .match-title {
   border-bottom: 2px solid #ccc;
   padding: 0.5em;

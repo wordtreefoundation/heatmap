@@ -22,6 +22,7 @@
   <select id="select-model"></select>
   <select id="select-abbrev"></select>
 
+  <div id="heatmap-message"></div>
   <div id="heatmap-container"></div>
 
   <script>
@@ -229,10 +230,11 @@
       $("#select-abbrev").change(function(e) {
         var heatmap = $('option:selected', this).data("heatmap");
 
-        $("#heatmap-container").html("LOADING...");
+        $("#heatmap-message").html("LOADING...");
         heatmap.loadScores(function(data, hm) {
           console.log('scores', data, hm);
           hm.mount($("#heatmap-container")[0], data);
+          $("#heatmap-message").html("");
         })
 
       }).trigger('change');
